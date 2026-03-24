@@ -1,0 +1,67 @@
+helm install alb-controller oci://mcr.microsoft.com/application-lb/charts/alb-controller --version 1.8.12 --set albController.podIdentity.clientID=99de3c2f-bbc0-4ace-bfba-7bcf3590754d
+
+argocd repo add git@github.com:EverstarAI/everstar-azure-infrastructure.git --ssh-private-key-path ~/.ssh/id_rsa
+
+helm upgrade argocd argo/argo-cd -n argocd --set configs.cm.kustomize.buildOptions="--enable-helm"
+
+kubectl patch application root -n argocd --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'
+
+enable build options for helm in argocd configmap kustomize settings
+
+kubectl create secret generic clouddns-key --namespace cert-manager --from-file=key.json=./sa-json-key.json
+
+vaibhav [ ~ ]$ kubectl describe applicationloadbalancer -n appgw-containers
+Name:         alb-containers
+Namespace:    appgw-containers
+Labels:       <none>
+Annotations:  <none>
+API Version:  alb.networking.azure.io/v1
+Kind:         ApplicationLoadBalancer
+Metadata:
+  Creation Timestamp:  2026-01-16T08:50:25Z
+  Generation:          1
+  Resource Version:    13111700
+  UID:                 7a22927c-f0e3-4994-8d80-b93fa028f62c
+Spec:
+  Associations:
+    /subscriptions/b512b3e8-94b4-49e8-8f03-03a0cb898cd5/resourceGroups/evs-gdn-net-use2-dev-rg-01/providers/Microsoft.Network/virtualNetworks/evs-gdn-spoke-use2-dev-vnet-01/subnets/evs-gdn-spoke-use2-dev-alb-snet
+Status:
+  Conditions:
+    Last Transition Time:  2026-01-16T09:24:46Z
+    Message:               Valid Application Gateway for Containers resource
+    Observed Generation:   1
+    Reason:                Accepted
+    Status:                True
+    Type:                  Accepted
+    Last Transition Time:  2026-01-16T09:24:46Z
+    Message:               error=Unable to create association for Application Gateway for Containers resource /subscriptions/b512b3e8-94b4-49e8-8f03-03a0cb898cd5/resourceGroups/evs-gdn-aks-use2-dev-aks-01-managed-rg-01/providers/Microsoft.ServiceNetworking/trafficControllers/alb-f4133420: failed to create association as-3a0ef8a3 for Application Gateway for Containers alb-f4133420: PUT https://management.azure.com/subscriptions/b512b3e8-94b4-49e8-8f03-03a0cb898cd5/resourceGroups/evs-gdn-aks-use2-dev-aks-01-managed-rg-01/providers/Microsoft.ServiceNetworking/trafficControllers/alb-f4133420/associations/as-3a0ef8a3
+--------------------------------------------------------------------------------
+RESPONSE 400: 400 Bad Request
+ERROR CODE: AppGwForContainersAssociationSubnetNotDelegatedToTrafficController
+--------------------------------------------------------------------------------
+{
+  "error": {
+    "code": "AppGwForContainersAssociationSubnetNotDelegatedToTrafficController",
+    "message": "Application Gateway for Containers: Association '/subscriptions/b512b3e8-94b4-49e8-8f03-03a0cb898cd5/resourceGroups/evs-gdn-aks-use2-dev-aks-01-managed-rg-01/providers/Microsoft.ServiceNetworking/trafficControllers/alb-f4133420/associations/as-3a0ef8a3' cannot reference subnet '/subscriptions/b512b3e8-94b4-49e8-8f03-03a0cb898cd5/resourceGroups/evs-gdn-net-use2-dev-rg-01/providers/Microsoft.Network/virtualNetworks/evs-gdn-spoke-use2-dev-vnet-01/subnets/evs-gdn-spoke-use2-dev-alb-snet' that is not delegated to 'Microsoft.ServiceNetworking/TrafficControllers'. Make sure that the referenced subnet has delegation to 'Microsoft.ServiceNetworking/TrafficControllers' and try again."
+  },
+  "status": "Failed"
+}
+
+
+vaibhav [ ~ ]$ kubectl patch applicationloadbalancer appgw-non-prod -n appgw-containers --type=json -p='[{"op":"remove","path":"/metadata/finalizers"}]'
+applicationloadbalancer.alb.networking.azure.io/appgw-non-prod patched
+vaibhav [ ~ ]$ kubectl get overlayextensionconfigs.acn.azure.com -A
+NAMESPACE          NAME
+azure-alb-system   alb-overlay-extension-config-268707fb
+vaibhav [ ~ ]$ kubectl patch overlayextensionconfigs.acn.azure.com alb-overlay-extension-config-268707fb -p '{"metadata":{"finalizers":[]}}' --type=merge 
+Error from server (NotFound): overlayextensionconfigs.acn.azure.com "alb-overlay-extension-config-268707fb" not found
+vaibhav [ ~ ]$ kubectl delete applicationloadbalancer appgw-non-prod -n appgw-containers
+applicationloadbalancer.alb.networking.azure.io "appgw-non-prod" deleted from appgw-containers namespace
+vaibhav [ ~ ]$ kubectl delete overlayextensionconfigs.acn.azure.com alb-overlay-extension-config-268707fb
+Error from server (NotFound): overlayextensionconfigs.acn.azure.com "alb-overlay-extension-config-268707fb" not found
+vaibhav [ ~ ]$ 
+
+
+
+
+New-AzRoleAssignment -ObjectId  '46878227-74cd-4aad-b6f6-52f5d5397b72' -RoleDefinitionName 'Owner' -ResourceGroupName 'evs-gdn-net-use2-prd-rg-01'
